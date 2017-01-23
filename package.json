@@ -33,7 +33,7 @@
     "sinon-chai": "^2.8.0",
     "socket.io": "^1.7.2",
     "visibilityjs": "^1.2.4",
-    "webappatron": "github:deadlyicon/webappatron#e59ede1",
+    "webappatron": "github:deadlyicon/webappatron#c54cd5b",
     "winston": "^2.3.0"
   },
   "devDependencies": {
