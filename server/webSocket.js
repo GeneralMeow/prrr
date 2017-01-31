@@ -5,6 +5,7 @@ import Commands from './commands'
 
 const initialize = (server, httpServer) => {
   const io = new SocketIO(httpServer)
+  httpServer.webSocket = io
   io.use((socket, next) => {
     server.sessionMiddleware(socket.request, socket.request.res, next)
   })
@@ -16,15 +17,17 @@ const loadCurrentUser = function(socket, next){
   const session = socket.request.session
   socket.session = session
 
-  const currentUserGithubId = (
-    session &&
-    session.passport &&
-    session.passport.user &&
-    session.passport.user.github_id
-  )
+  const currentUserGithubId = process.env.NODE_ENV === 'test'
+    ? socket.handshake.query.loggedInAs
+    : (
+      session &&
+      session.passport &&
+      session.passport.user &&
+      session.passport.user.github_id
+    )
 
   if (currentUserGithubId){
-    new Queries().getUserByGithubId(session.passport.user.github_id)
+    new Queries().getUserByGithubId(currentUserGithubId)
       .then(user => {
         socket.user = user
         socket.queries = new Queries(user)
@@ -39,7 +42,7 @@ const loadCurrentUser = function(socket, next){
   }
 }
 
-const initializeConnection = (socket) => {
+const initializeConnection = (socket, ...args) => {
   let { session, user, commands, queries } = socket
 
   logger.info('socket connection initialized', { session, user })
@@ -83,7 +86,7 @@ const initializeConnection = (socket) => {
   if (user) {
     queries.getPrrrs()
       .then(prrrs => {
-        socket.emit('initialPrrrs', prrrs)
+        emit('initialPrrrs', prrrs)
       })
       .catch(error => {
         reportError('loading initial prrrs', error)
@@ -172,6 +175,12 @@ const initializeConnection = (socket) => {
         reportError(`completing Prrr ${prrrId}`, error)
       })
   })
+
+  if (process.env.NODE_ENV === 'test') {
+    on('loginAs', ({githubId}) => {
+      socket.request.session.passport = { user: { github_id: Number(githubId) } }
+    })
+  }
 }
 
 
