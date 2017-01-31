@@ -4,6 +4,7 @@ import {
   withServer,
   insertUser,
   insertPrrr,
+  jsonify,
 } from '../helpers'
 
 import { insertUserFixture } from '../fixtures'
@@ -23,8 +24,8 @@ describe.only('WebSocket', function(){
       insertUserFixture('nicosesma'),
       insertUserFixture('GrahamCampbell'),
     ]).then(records => {
-      nicosesma = JSON.parse(JSON.stringify(records[0]))
-      GrahamCampbell = JSON.parse(JSON.stringify(records[1]))
+      nicosesma = jsonify(records[0])
+      GrahamCampbell = jsonify(records[1])
     })
   })
 
@@ -40,6 +41,7 @@ describe.only('WebSocket', function(){
         'metricsForWeek',
         'initialPrrrs',
         'PrrrClaimed',
+        'PrrrUpdated',
       ]
 
       const eventLog = []
@@ -113,10 +115,22 @@ describe.only('WebSocket', function(){
             number: 14,
           })
         })
-        .then(_ => wait(1000))
-        .then(_ => {
-          console.log(JSON.stringify(eventLog, null, 4))
-          expect(eventLog).to.have.length(1)
+        .then(_ => wait(100))
+        .then(_ => knex.select('*').from('pull_request_review_requests'))
+        .then(prrrs => {
+          expect(prrrs).to.have.length(1)
+          const prrr = jsonify(prrrs[0])
+          expectEvent({
+            client: 0,
+            event: 'PrrrUpdated',
+            payload: prrr,
+          })
+          expectEvent({
+            client: 1,
+            event: 'PrrrUpdated',
+            payload: prrr,
+          })
+          expect(eventLog).to.have.length(2)
         })
 
     })
