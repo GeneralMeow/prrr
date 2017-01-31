@@ -56,6 +56,16 @@ export default class Queries {
   }
 
   getNextPendingPrrr(){
+
+    `
+      select *
+      from "pull_request_review_requests"
+      WHERE "pull_request_review_requests"."claimed_at" IS NULL
+      AND NOT "pull_request_review_requests"."id" IN (
+        select prrr_id from "unclaimed_prrrs" WHERE "github_username" = 'deadlyicon'
+      )
+    `
+
     const x = this.knex
       .select('*')
       .from('pull_request_review_requests')
