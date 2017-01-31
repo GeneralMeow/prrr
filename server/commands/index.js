@@ -127,10 +127,20 @@ export default class Commands {
         updated_at: new Date,
       })
       .where('id', prrrId)
-      .whereNotNull('claimed_by')
+      .where('claimed_by', this.currentUser.github_username)
       .whereNotNull('claimed_at')
       .returning('*')
       .then(firstRecord)
+      .then(prrr => {
+        if (!prrr) return prrr
+        this.knex
+          .table('unclaimed_prrrs')
+          .insert({
+            prrr_id: prrr.id,
+            github_id: this.currentUser.github_username,
+            unclaimed_at: new Date,
+          })
+      })
   }
 
   unclaimStalePrrrs(prrr){

@@ -1,25 +1,23 @@
 import moment from 'moment'
 import knex from '../../server/knex'
 
-describe('Queries', function(){
+import {
+  insertUserFixture,
+  insertPrrr,
+  timeAgo,
+} from '../helpers'
+
+describe.only('Queries', function(){
 
   context('as Nico', function(){
 
     let queries
 
     beforeEach(function(){
-      return (new Commands()).createUser({
-        name: 'Nico',
-        email: 'nicosm310@gmail.com',
-        avatar_url: 'https://avatars0.githubusercontent.com/u/18688343?v=3&s=460',
-        github_id: 987654,
-        github_username: 'nicosesma',
-        github_access_token: 'FAKE_GITHUB_ACCESS_TOKEN',
-        github_refresh_token: null,
-      })
-      .then(nico => {
-        queries = new Queries(nico)
-      })
+      return insertUserFixture('nicosesma')
+        .then(nico => {
+          queries = new Queries(nico)
+        })
     })
 
     describe('getPrrrs', function(){
@@ -31,74 +29,6 @@ describe('Queries', function(){
       })
     })
 
-    describe('getNextPendingPrrr', function(){
-      it('should return the oldest unclaimed Prrr not requested by user', function(){
-        const now = moment()
-        const minutesAgo = minutes =>
-          now.clone().subtract(minutes, 'minutes').toDate()
-
-        const insertPrrr = attributes =>
-          knex
-            .insert(attributes)
-            .into('pull_request_review_requests')
-
-        const markPullRequestAsClaimed = prrr =>
-          knex
-            .table('pull_request_review_requests')
-            .update({
-              claimed_by: 'anybody',
-              claimed_at: new Date,
-              updated_at: new Date,
-            })
-            .where('id', prrr.id)
-
-        return Promise.all([
-          insertPrrr({
-            owner: 'linus',
-            repo: 'killall-prrr',
-            number: 12,
-            requested_by: 'linus',
-            created_at: minutesAgo(30),
-            updated_at: minutesAgo(30),
-          }),
-          insertPrrr({
-            owner: 'ykatz',
-            repo: 'prrr-be-awesome',
-            number: 18,
-            requested_by: 'ykatz',
-            created_at: minutesAgo(25),
-            updated_at: minutesAgo(25),
-          }),
-          insertPrrr({
-            owner: 'paulirish',
-            repo: 'prrr-rocks',
-            number: 18,
-            requested_by: 'paulirish',
-            created_at: minutesAgo(20),
-            updated_at: minutesAgo(20),
-          }),
-        ])
-        .then(_ => queries.getNextPendingPrrr())
-        .then( prrr => {
-          expect(prrr.repo).to.eql('killall-prrr')
-          return markPullRequestAsClaimed(prrr)
-        })
-        .then(_ => queries.getNextPendingPrrr())
-        .then( prrr => {
-          expect(prrr.repo).to.eql('prrr-be-awesome')
-          return markPullRequestAsClaimed(prrr)
-        })
-        .then(_ => queries.getNextPendingPrrr())
-        .then( prrr => {
-          expect(prrr.repo).to.eql('prrr-rocks')
-          return markPullRequestAsClaimed(prrr)
-        })
-        .then(_ => queries.getNextPendingPrrr())
-        .then( prrr => {
-          expect(prrr).to.be.undefined
-        })
-      })
-    })
   })
 
   describe('metricsForWeek', () => {
@@ -108,11 +38,6 @@ describe('Queries', function(){
 
     beforeEach(() => {
       queries = new Queries
-
-      const insertPrrr = attributes =>
-        knex
-          .insert(attributes)
-          .into('pull_request_review_requests')
 
       return Promise.all([
         insertPrrr({
@@ -205,5 +130,147 @@ describe('Queries', function(){
         })
     })
 
+  })
+
+
+  describe('getNextPendingPrrr', function(){
+
+    let commandsAsNico, commandsAsPaul
+
+    beforeEach(function(){
+      return Promise.all([
+        insertUserFixture('nicosesma'),
+        insertUserFixture('paulirish'),
+        insertUserFixture('GrahamCampbell'),
+        insertPrrr({
+          owner: 'GrahamCampbell',
+          repo: 'Laravel-Parse',
+          number: 22,
+          requested_by: 'GrahamCampbell',
+          created_at: timeAgo(60, 'minutes'),
+          updated_at: timeAgo(60, 'minutes'),
+        }),
+        insertPrrr({
+          owner: 'GrahamCampbell',
+          repo: 'Sudoku',
+          number: 8,
+          requested_by: 'GrahamCampbell',
+          created_at: timeAgo(50, 'minutes'),
+          updated_at: timeAgo(50, 'minutes'),
+        }),
+        insertPrrr({
+          owner: 'nicosesma',
+          repo: 'core-algorithms',
+          number: 8,
+          requested_by: 'nicosesma',
+          created_at: timeAgo(40, 'minutes'),
+          updated_at: timeAgo(40, 'minutes'),
+        }),
+        insertPrrr({
+          owner: 'nicosesma',
+          repo: 'core-data-structures',
+          number: 9,
+          requested_by: 'nicosesma',
+          created_at: timeAgo(30, 'minutes'),
+          updated_at: timeAgo(30, 'minutes'),
+        }),
+        insertPrrr({
+          owner: 'paulirish',
+          repo: 'html5rocks',
+          number: 4556,
+          requested_by: 'paulirish',
+          created_at: timeAgo(20, 'minutes'),
+          updated_at: timeAgo(20, 'minutes'),
+        }),
+        insertPrrr({
+          owner: 'paulirish',
+          repo: 'gif-chrome-extension',
+          number: 12,
+          requested_by: 'paulirish',
+          created_at: timeAgo(10, 'minutes'),
+          updated_at: timeAgo(10, 'minutes'),
+        }),
+      ]).then(([nicosesma, paulirish, GrahamCampbell, ...prrrs]) => {
+        commandsAsNico = new Commands(nicosesma)
+        commandsAsPaul = new Commands(paulirish)
+        expect(prrrs).to.have.length(6)
+      })
+    })
+
+    it.only('should return the oldest unclaimed Prrr not requested by user', function(){
+      let nicosPrrr, paulsPrrr
+
+      return Promise.resolve()
+        // Nico claims a Prrr
+        .then(_ => commandsAsNico.claimPrrr())
+        .then( prrr => {
+          expect(prrr).to.not.be.null
+          expect(prrr.owner).to.eql('GrahamCampbell')
+          expect(prrr.repo).to.eql('Laravel-Parse')
+          expect(prrr.number).to.eql(22)
+          nicosPrrr = prrr
+        })
+        // Paul claims a Prrr
+        .then(_ => commandsAsPaul.claimPrrr())
+        .then( prrr => {
+          expect(prrr).to.not.be.null
+          expect(prrr.owner).to.eql('GrahamCampbell')
+          expect(prrr.repo).to.eql('Sudoku')
+          expect(prrr.number).to.eql(8)
+          paulsPrrr = prrr
+        })
+        // Nico unclaims that Prrr
+        .then(_ => commandsAsNico.unclaimPrrr(nicosPrrr.id))
+        // Paul completes their prrr
+        .then(_ => commandsAsPaul.completePrrr(paulsPrrr.id))
+        // Nico claims another Prrr
+        .then(_ => commandsAsNico.claimPrrr())
+        .then( prrr => {
+          expect(prrr.owner).to.eql('paulirish')
+          expect(prrr.repo).to.eql('html5rocks')
+          expect(prrr.number).to.eql(4556)
+          nicosPrrr = prrr
+        })
+        // Paul claims another Prrr
+        .then(_ => commandsAsPaul.claimPrrr())
+        .then( prrr => {
+          expect(prrr.owner).to.eql('GrahamCampbell')
+          expect(prrr.repo).to.eql('Sudoku')
+          expect(prrr.number).to.eql(8)
+          paulsPrrr = prrr
+        })
+
+
+        // .then(_ => commandsAsPaul.claimPrrr())
+        // .then( prrr => {
+        //   expect(prrr.owner).to.eql('GrahamCampbell')
+        //   expect(prrr.repo).to.eql('Sudoku')
+        //   expect(prrr.number).to.eql(8)
+        //   paulsPrrr = prrr
+        // })
+        // .then( prrr => {
+        //   expect(prrr.owner).to.eql('paulirish')
+        //   expect(prrr.repo).to.eql('gif-chrome-extension')
+        //   expect(prrr.number).to.eql(12)
+        // })
+
+
+
+
+        // .then(_ => queries.getNextPendingPrrr())
+        // .then( prrr => {
+        //   expect(prrr.repo).to.eql('prrr-be-awesome')
+        //   return markPullRequestAsClaimed(prrr)
+        // })
+        // .then(_ => queries.getNextPendingPrrr())
+        // .then( prrr => {
+        //   expect(prrr.repo).to.eql('prrr-rocks')
+        //   return markPullRequestAsClaimed(prrr)
+        // })
+        // .then(_ => queries.getNextPendingPrrr())
+        // .then( prrr => {
+        //   expect(prrr).to.be.undefined
+        // })
+    })
   })
 })

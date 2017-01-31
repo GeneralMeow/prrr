@@ -56,18 +56,23 @@ export default class Queries {
   }
 
   getNextPendingPrrr(){
-    return this.knex
+    const x = this.knex
       .select('*')
       .from('pull_request_review_requests')
-      .orderBy('created_at', 'asc')
+      .join('unclaimed_prrrs', 'pull_request_review_requests.id', '=', 'unclaimed_prrrs.prrr_id')
+      .whereNot('unclaimed_prrrs.github_username', this.currentUser.github_username)
+      .whereNot('requested_by', this.currentUser.github_username)
       .where({
         archived_at: null,
         completed_at: null,
         claimed_by: null,
         claimed_at: null,
       })
-      .whereNot('requested_by', this.currentUser.github_username)
+      .orderBy('created_at', 'asc')
       .first()
+
+    console.log('XXXXXX', x+'')
+    return x
   }
 
   getPrrrById(prrrId){
