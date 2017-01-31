@@ -55,4 +55,13 @@ export const withUsersInTheDatabase = callback => {
   })
 }
 
-export const jsonify = object => JSON.parse(JSON.stringify(object))
+export const jsonify = object => {
+  const jsonifiedObject = {}
+  Object.keys(object).forEach(key => {
+    jsonifiedObject[key] = typeof object[key] === 'undefined'
+      ? undefined
+      : JSON.parse(JSON.stringify(object[key]))
+  })
+  return jsonifiedObject
+}
+

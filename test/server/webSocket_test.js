@@ -24,8 +24,8 @@ describe.only('WebSocket', function(){
       insertUserFixture('nicosesma'),
       insertUserFixture('GrahamCampbell'),
     ]).then(records => {
-      nicosesma = jsonify(records[0])
-      GrahamCampbell = jsonify(records[1])
+      nicosesma = records[0]
+      GrahamCampbell = records[1]
     })
   })
 
@@ -46,8 +46,9 @@ describe.only('WebSocket', function(){
 
       const eventLog = []
 
-      const expectEvent = event =>
-        expect(eventLog).to.deep.include(event)
+      const expectEvent = event => {
+        expect(eventLog).to.deep.include(jsonify(event))
+      }
 
       const clearEventLog = _ => eventLog.length = 0
 
@@ -70,6 +71,7 @@ describe.only('WebSocket', function(){
         })
       })
 
+      // clients connect and initialize
       return wait(1000)
         .then(_ => {
           expectEvent({
@@ -105,6 +107,8 @@ describe.only('WebSocket', function(){
           expect(eventLog).to.have.length(8)
           clearEventLog()
         })
+
+        // client0 creates a Prrr
         .then(_ => {
           sinon.stub(Queries.prototype, "getPullRequest")
             .returns(Promise.resolve({FAKE_PR: true}))
@@ -119,7 +123,7 @@ describe.only('WebSocket', function(){
         .then(_ => knex.select('*').from('pull_request_review_requests'))
         .then(prrrs => {
           expect(prrrs).to.have.length(1)
-          const prrr = jsonify(prrrs[0])
+          const prrr = prrrs[0]
           expectEvent({
             client: 0,
             event: 'PrrrUpdated',
@@ -131,6 +135,36 @@ describe.only('WebSocket', function(){
             payload: prrr,
           })
           expect(eventLog).to.have.length(2)
+          clearEventLog()
+        })
+
+        // client1 claims a prrr
+        .then(_ => {
+          client1.emit('claimPrrr')
+        })
+        .then(_ => wait(100))
+        .then(_ => knex.select('*').from('pull_request_review_requests'))
+        .then(prrrs => {
+          expect(prrrs).to.have.length(1)
+          const prrr = prrrs[0]
+          expectEvent({
+            client: 0,
+            event: 'PrrrUpdated',
+            payload: prrr,
+          })
+          expectEvent({
+            client: 1,
+            event: 'PrrrUpdated',
+            payload: prrr,
+          })
+          expectEvent({
+            client: 1,
+            event: 'PrrrClaimed',
+            payload: prrr,
+          })
+          expect(eventLog).to.have.length(3)
+          clearEventLog()
+          // console.log(JSON.stringify(eventLog, null, 2))
         })
 
     })
