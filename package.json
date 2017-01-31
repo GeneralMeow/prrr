@@ -31,6 +31,7 @@
     "sinon": "^1.17.7",
     "sinon-chai": "^2.8.0",
     "socket.io": "^1.7.2",
+    "stripcolorcodes": "^0.1.0",
     "visibilityjs": "^1.2.4",
     "webappatron": "github:deadlyicon/webappatron#d3a798b",
     "winston": "^2.3.0"
