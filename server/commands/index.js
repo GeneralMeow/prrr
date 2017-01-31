@@ -9,8 +9,6 @@ export default class Commands {
     this.currentUser = currentUser
     this.knex = _knex
     this.queries = new Queries(currentUser, _knex)
-    if (this.currentUser)
-      this.github = new Github(this.currentUser.github_access_token)
   }
 
   as(user){
@@ -66,18 +64,13 @@ export default class Commands {
   }
 
   createPrrr({owner, repo, number}){
-    return this.github.pullRequests.get({owner, repo, number})
-      .catch(originalError => {
-        const error = new Error('Pull Request Not Found')
-        error.originalError = originalError
-        error.status = 400
-        throw error
+    // return this.github.pullRequests.get({owner, repo, number})
+    return this.queries.getPullRequest({owner, repo, number})
+      .then(pullRequest => {
+        if (!pullRequest) throw new Error('Pull Request Not Found')
+        return this.queries.getPrrrForPullRequest({owner, repo, number})
       })
-      .then(pullRequest =>
-        this.queries.getPrrrForPullRequest(pullRequest)
-          .then(prrr => ({prrr, pullRequest}))
-      )
-      .then(({prrr, pullRequest}) => {
+      .then(prrr => {
         if (prrr) {
           return prrr.archived_at || prrr.completed_at
             ? this.reopenPrrr(prrr.id)

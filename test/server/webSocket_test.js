@@ -47,6 +47,8 @@ describe.only('WebSocket', function(){
       const expectEvent = event =>
         expect(eventLog).to.deep.include(event)
 
+      const clearEventLog = _ => eventLog.length = 0
+
       const client0 = io.connect(`http://0.0.0.0:${SERVER_PORT}`, {
         forceNew: true,
         query: {loggedInAs: nicosesma.github_id}
@@ -76,7 +78,12 @@ describe.only('WebSocket', function(){
           expectEvent({
             client: 0,
             event: 'updateSession',
-            payload: { user: nicosesma }
+            payload: { user: nicosesma },
+          })
+          expectEvent({
+            client: 0,
+            event: 'initialPrrrs',
+            payload: { },
           })
           expectEvent({
             client: 1,
@@ -88,6 +95,28 @@ describe.only('WebSocket', function(){
             event: 'updateSession',
             payload: { user: GrahamCampbell }
           })
+          expectEvent({
+            client: 1,
+            event: 'initialPrrrs',
+            payload: { },
+          })
+          expect(eventLog).to.have.length(8)
+          clearEventLog()
+        })
+        .then(_ => {
+          sinon.stub(Queries.prototype, "getPullRequest")
+            .returns(Promise.resolve({FAKE_PR: true}))
+
+          client0.emit('createPrrr', {
+            owner: 'nicosesma',
+            repo: 'go-game',
+            number: 14,
+          })
+        })
+        .then(_ => wait(1000))
+        .then(_ => {
+          console.log(JSON.stringify(eventLog, null, 4))
+          expect(eventLog).to.have.length(1)
         })
 
     })
