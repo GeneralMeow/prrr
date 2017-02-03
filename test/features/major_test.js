@@ -2,17 +2,27 @@ import webdriver from 'selenium-webdriver'
 import { usingSelenium, By, until } from '../selenium_helpers'
 import { withUsersInTheDatabase } from '../helpers'
 
-describe.only('selenium scenarios', function(){
+describe('selenium scenarios', function(){
   usingSelenium(function(){
 
     withUsersInTheDatabase(function(){
+
+      beforeEach(function() {
+        sinon.stub(Queries.prototype, 'getPullRequest').returns(
+          Promise.resolve({FAKE_PR: true})
+        );
+      })
+
+      afterEach(function(){
+        Queries.prototype.getPullRequest.restore()
+      })
+
+
       it('runs through scenario of a player creating a prrr and a coach seeing a new prrr being added and claims it', function(){
         this.timeout(60*10000)
 
         const player = this.createBrowser()
         const coach = this.createBrowser('right')
-
-        sinon.stub(Queries.prototype, "getPullRequest").returns(Promise.resolve({FAKE_PR: true}));
 
         return Promise.resolve()
         //Create initial state for testing

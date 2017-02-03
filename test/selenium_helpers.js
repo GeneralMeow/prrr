@@ -59,14 +59,6 @@ const Browser = function(){
       })
   }
 
-  browser.shouldSee = function(text, timeout=2000){
-    const body = this.findElement(By.css('body'));
-    return this.wait(until.elementTextContains(body, text), timeout)
-      .catch(error => {
-        throw new Error(`expected page to contain text: ${JSON.stringify(text)}`)
-      })
-  }
-
   browser.shouldSeeWithin = function(text, element, timeout=2000){
     return this.wait(until.elementTextContains(this.findElement(element), text), timeout)
       .catch(error => {
@@ -92,6 +84,14 @@ const Browser = function(){
         return this.sleep(100)
           .then(_ => this.shouldNotSeeWithin(text, element, timeout - duration - 100))
       })
+  }
+
+  browser.shouldSee = function(text, timeout){
+    return this.shouldSeeWithin(text, By.css('body'), timeout)
+  }
+
+  browser.shouldNotSee = function(text, timeout){
+    return this.shouldNotSeeWithin(text, By.css('body'), timeout)
   }
 
   browser.getWindowUrls = function(){
@@ -180,16 +180,10 @@ const setupSelenium = function(done) {
     return browser
   }
   this.waitForAllBrowsers = () => {
-    console.log('waiting for all browsers to complete')
     const promises = this.browsers.map(browser =>
-      browser.then(x => {
-        console.log('browser done', x)
-        return x
-      })
+      browser.then(x => x)
     )
-    return Promise.all(promises).then(results => {
-      console.log('all browsers complete', {results})
-    })
+    return Promise.all(this.browsers)
   }
   withServer.call(this, _ => done())
 }
